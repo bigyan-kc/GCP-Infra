@@ -176,7 +176,12 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-      
+
+      - name: Inject private key into bastion host
+        run: |
+          BASTION_IP=$(jq -r '.bastion_public_ip.value' terraform-output.json)
+          cat ~/.ssh/id_rsa | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa safal@${BASTION_IP} 'mkdir -p ~/.ssh && cat > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa'
+
       - name: Disable SSH host key checking
         run: |
           cat > ~/.ssh/config <<EOF
