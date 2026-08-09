@@ -35,9 +35,37 @@ resource "google_compute_firewall" "ssh_firewall" {
   target_tags   = ["ubuntu-node"]
 }
 
-resource "google_compute_instance" "nodes" {
-  count        = var.node_count
-  name         = "${var.instance_name_prefix}-${count.index + 1}"
+resource "google_compute_instance" "master" {
+  count        = var.node_count_master
+  name         = "${var.instance_name_prefix}-master-${count.index + 1}"
+  machine_type = var.machine_type
+  zone         = var.zone
+
+  boot_disk {
+    initialize_params {
+      image = var.instance_image
+      size  = var.boot_disk_size
+    }
+  }
+
+  tags = ["ubuntu-node"]
+
+  metadata = var.ssh_public_key != "" ? {
+    ssh-keys = format("%s:%s", var.ssh_username, trimspace(var.ssh_public_key))
+    } : var.ssh_public_key_path != "" ? {
+    ssh-keys = format("%s:%s", var.ssh_username, trimspace(file(var.ssh_public_key_path)))
+  } : {}
+
+  network_interface {
+    network    = google_compute_network.default_vpc.self_link
+    subnetwork = google_compute_subnetwork.default_subnet.self_link
+    access_config {}
+  }
+}
+
+resource "google_compute_instance" "worker" {
+  count        = var.node_count_worker
+  name         = "${var.instance_name_prefix}-worker-${count.index + 1}"
   machine_type = var.machine_type
   zone         = var.zone
 

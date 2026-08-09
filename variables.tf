@@ -81,10 +81,16 @@ variable "instance_name_prefix" {
   description = "Prefix used for naming the Ubuntu VM instances."
 }
 
-variable "node_count" {
+variable "node_count_master" {
   type        = number
-  default     = 2
-  description = "Number of Ubuntu VM instances to create."
+  default     = 1
+  description = "Number of Kubernetes master nodes to create."
+}
+
+variable "node_count_worker" {
+  type        = number
+  default     = 1
+  description = "Number of Kubernetes worker nodes to create."
 }
 
 variable "boot_disk_size" {
