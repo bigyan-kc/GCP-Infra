@@ -59,18 +59,3 @@ output "instance_internal_ips" {
   description = "Internal IP addresses of all created VM instances."
 }
 
-output "instance_names" {
-  value       = [for instance in google_compute_instance.nodes : instance.name]
-  description = "Names of the created Ubuntu VM instances."
-}
-
-output "instance_public_ips" {
-  value       = [for instance in google_compute_instance.nodes : instance.network_interface[0].access_config[0].nat_ip]
-  description = "Public IP addresses of the created VM instances."
-}
-
-output "instance_internal_ips" {
-  value       = [for instance in google_compute_instance.nodes : instance.network_interface[0].network_ip]
-  description = "Internal IP addresses of the created VM instances."
-}
-
