@@ -50,8 +50,17 @@ resource "google_compute_instance" "nodes" {
 
   tags = ["ubuntu-node"]
 
-  metadata = var.ssh_public_key_path != "" ? {
-    ssh-keys = format("%s:%s", var.ssh_username, trimspace(file(var.ssh_public_key_path)))
+  metadata = (var.ssh_public_key != "" || var.ssh_public_key_path != "") ? {
+    ssh-keys = format(
+      "%s:%s",
+      var.ssh_username,
+      trimspace(
+        coalesce(
+          nullif(var.ssh_public_key, ""),
+          trimspace(file(var.ssh_public_key_path))
+        )
+      )
+    )
   } : {}
 
   network_interface {

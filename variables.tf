@@ -63,6 +63,12 @@ variable "ssh_username" {
   description = "Username for the SSH key that will be injected into the instance metadata."
 }
 
+variable "ssh_public_key" {
+  type        = string
+  default     = ""
+  description = "SSH public key content injected into instance metadata. Use this for CI secrets."
+}
+
 variable "ssh_public_key_path" {
   type        = string
   default     = ""
