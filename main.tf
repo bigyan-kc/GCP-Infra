@@ -19,18 +19,18 @@ resource "google_compute_firewall" "ssh_firewall" {
     ports    = ["22", "6443", "10250"]
   }
 
-    allow {
+  allow {
     protocol = "udp"
     ports = [
-      "8472"  # Calico VXLAN
+      "8472" # Calico VXLAN
     ]
   }
 
-  
+
   allow {
     protocol = "icmp"
   }
-  
+
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["ubuntu-node"]
 }
