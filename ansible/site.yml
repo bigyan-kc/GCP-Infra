@@ -29,10 +29,11 @@
       when: ansible_swaptotal_mb > 0
 
     - name: Disable swap in /etc/fstab
-      replace:
+      ansible.builtin.lineinfile:
         path: /etc/fstab
         regexp: '^([^#].*\s+swap\s+.*)$'
-        replace: '# \1'
+        line: '# \1'
+        backrefs: yes
       backup: yes
       when: ansible_swaptotal_mb > 0
 
