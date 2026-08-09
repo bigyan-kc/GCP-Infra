@@ -1,9 +1,6 @@
 name: Terraform CI/CD
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       action:
@@ -194,11 +191,15 @@ jobs:
 
       - name: Wait for SSH
         run: |
+          BASTION_IP=$(jq -r '.bastion_public_ip.value' terraform-output.json)
           for host in $(awk '/ansible_host=/ {print $2}' ansible/inventory.ini | cut -d= -f2); do
-            echo "Waiting for SSH on $host..."
+            echo "Waiting for SSH on $host via bastion $BASTION_IP..."
 
             for i in {1..30}; do
-              if nc -z "$host" 22; then
+              if ssh -o BatchMode=yes -o ConnectTimeout=10 \
+                -o ProxyCommand="ssh -W %h:%p -q safal@${BASTION_IP} -i ~/.ssh/id_rsa" \
+                -i ~/.ssh/id_rsa \
+                safal@$host true; then
                 echo "$host is ready"
                 break
               fi
