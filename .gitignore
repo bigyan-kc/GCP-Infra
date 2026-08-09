@@ -1,0 +1,34 @@
+# Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Crash log files
+crash.log
+
+# Ignore override files as they are usually local-only
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Local variable files, may contain sensitive values
+*.auto.tfvars
+
+# Ignore generated plan files
+*.tfplan
+
+# Ignore generated SSH keys and credentials
+*.pem
+*.key
+*.pub
+*.gpg
+*.json
+
+# OS files
+.DS_Store
+Thumbs.db
