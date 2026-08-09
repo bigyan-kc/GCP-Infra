@@ -52,7 +52,7 @@ resource "google_compute_instance" "nodes" {
 
   metadata = var.ssh_public_key != "" ? {
     ssh-keys = format("%s:%s", var.ssh_username, trimspace(var.ssh_public_key))
-  } : var.ssh_public_key_path != "" ? {
+    } : var.ssh_public_key_path != "" ? {
     ssh-keys = format("%s:%s", var.ssh_username, trimspace(file(var.ssh_public_key_path)))
   } : {}
 
