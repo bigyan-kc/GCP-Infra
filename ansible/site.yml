@@ -252,7 +252,7 @@
 # =============================================================
 
 - name: Join worker nodes
-  hosts: kube_workers
+  hosts: kube-workers
   become: true
 
   tasks:
