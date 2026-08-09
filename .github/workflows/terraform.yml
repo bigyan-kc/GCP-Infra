@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose terraform action to run'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
   contents: read
@@ -45,7 +54,7 @@ jobs:
 
   apply:
     name: Apply to GCP
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
     needs: terraform
     runs-on: ubuntu-latest
     environment: production
@@ -71,3 +80,32 @@ jobs:
 
       - name: Terraform apply
         run: terraform apply -input=false -auto-approve -var-file=terraform.tfvars
+
+  destroy:
+    name: Destroy GCP resources
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: latest
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform destroy
+        run: terraform destroy -input=false -auto-approve -var-file=terraform.tfvars

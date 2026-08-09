@@ -1,0 +1,13 @@
+[kube_master]
+# Replace with the public IP address or hostname of the first Terraform VM:
+master ansible_host=34.XXX.XXX.XXX
+
+[kube_workers]
+# Replace with the public IP address or hostname of the second Terraform VM:
+worker1 ansible_host=34.YYY.YYY.YYY
+
+[all:vars]
+ansible_user=safal
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_python_interpreter=/usr/bin/python3
+ansible_become=yes

@@ -1,0 +1,161 @@
+---
+- name: Prepare all Kubernetes nodes
+  hosts: all
+  become: yes
+  vars:
+    kube_packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - conntrack
+      - ipset
+      - socat
+      - util-linux
+      - containerd
+      - kubelet
+      - kubeadm
+      - kubectl
+  tasks:
+    - name: Install required apt packages
+      apt:
+        name: "{{ kube_packages }}"
+        state: present
+        update_cache: yes
+
+    - name: Disable swap immediately
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: Disable swap in /etc/fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\s+swap\s+.*)$'
+        replace: '# \1'
+      backup: yes
+      when: ansible_swaptotal_mb > 0
+
+    - name: Ensure kernel modules are loaded
+      ansible.builtin.modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Ensure sysctl settings for Kubernetes
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 }
+        - { name: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+        - { name: net.ipv4.ip_forward, value: 1 }
+
+    - name: Add Kubernetes APT repository signing key
+      ansible.builtin.apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes APT repository
+      ansible.builtin.apt_repository:
+        repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes
+
+    - name: Update apt cache after adding Kubernetes repository
+      apt:
+        update_cache: yes
+
+    - name: Install Kubernetes packages from apt
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+          - containerd
+        state: present
+        update_cache: yes
+
+    - name: Hold Kubernetes packages to avoid accidental upgrades
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        mark: hold
+
+    - name: Generate default containerd configuration
+      command: containerd config default
+      register: containerd_default_config
+      changed_when: false
+
+    - name: Write containerd config file
+      copy:
+        content: "{{ containerd_default_config.stdout }}"
+        dest: /etc/containerd/config.toml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Use systemd cgroup driver for containerd
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*SystemdCgroup\s*=\s*false'
+        replace: '            SystemdCgroup = true'
+
+    - name: Restart containerd
+      service:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+- name: Initialize Kubernetes control plane on master
+  hosts: kube_master
+  become: yes
+  tasks:
+    - name: Initialize Kubernetes master node
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf
+      register: kubeadm_init
+
+    - name: Create kubeconfig directory for root
+      file:
+        path: /root/.kube
+        state: directory
+        mode: '0700'
+
+    - name: Copy admin kubeconfig for root
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Deploy Flannel CNI to the cluster
+      command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: flannel_apply
+      changed_when: flannel_apply.rc == 0
+
+    - name: Generate kubeadm worker join command
+      command: kubeadm token create --print-join-command
+      register: kubeadm_join
+
+    - name: Set worker join command fact
+      set_fact:
+        kubeadm_join_command: "{{ kubeadm_join.stdout }}"
+
+- name: Join worker nodes to cluster
+  hosts: kube_workers
+  become: yes
+  tasks:
+    - name: Join worker node to Kubernetes cluster
+      command: "{{ hostvars[groups['kube_master'][0]].kubeadm_join_command }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
+      when: hostvars[groups['kube_master'][0]].kubeadm_join_command is defined
