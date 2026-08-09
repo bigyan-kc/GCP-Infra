@@ -73,6 +73,19 @@ resource "google_compute_firewall" "kube_firewall" {
   target_tags   = ["ubuntu-node"]
 }
 
+resource "google_compute_firewall" "internal_ssh" {
+  name    = "${var.network_name}-allow-internal-ssh"
+  network = google_compute_network.default_vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = [var.public_subnet_cidr_range]
+  target_tags   = ["ubuntu-node"]
+}
+
 resource "google_compute_instance" "bastion" {
   name         = "${var.instance_name_prefix}-bastion"
   machine_type = var.bastion_machine_type

@@ -136,22 +136,33 @@ jobs:
 
       - name: Generate Ansible inventory
         run: |
-          MASTER_IP=$(jq -r '.master_instance_public_ip.value' terraform-output.json)
+          BASTION_IP=$(jq -r '.bastion_public_ip.value' terraform-output.json)
+          MASTER_IP=$(jq -r '.master_instance_internal_ip.value' terraform-output.json)
 
-          WORKER_IPS=$(jq -r '.worker_instance_public_ips.value[]' terraform-output.json)
+          WORKER_IPS=$(jq -r '.worker_instance_internal_ips.value[]' terraform-output.json)
 
           cat > ansible/inventory.ini <<EOF
           [kube_master]
-          kube-master ansible_host=${MASTER_IP} ansible_user=safal
+          kube-master ansible_host=${MASTER_IP}
 
-          [kube-workers]
+          [kube_workers]
           EOF
 
           i=1
           for IP in $WORKER_IPS; do
-            echo "kube-worker${i} ansible_host=${IP} ansible_user=safal" >> ansible/inventory.ini
+            echo "kube-worker${i} ansible_host=${IP}" >> ansible/inventory.ini
             i=$((i + 1))
           done
+
+          cat >> ansible/inventory.ini <<EOF
+
+          [all:vars]
+          ansible_user=safal
+          ansible_ssh_private_key_file=~/.ssh/id_rsa
+          ansible_python_interpreter=/usr/bin/python3
+          ansible_become=yes
+          ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q safal@${BASTION_IP} -i ~/.ssh/id_rsa" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          EOF
 
           cat ansible/inventory.ini
 
