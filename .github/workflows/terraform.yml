@@ -174,7 +174,7 @@ jobs:
             UserKnownHostsFile /dev/null
           EOF
 
-    chmod 600 ~/.ssh/config
+          chmod 600 ~/.ssh/config
 
       - name: Wait for SSH
         run: |
