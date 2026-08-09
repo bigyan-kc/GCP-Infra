@@ -141,15 +141,15 @@ jobs:
           WORKER_IPS=$(jq -r '.worker_instance_public_ips.value[]' terraform-output.json)
 
           cat > ansible/inventory.ini <<EOF
-          [master]
+          [kube_master]
           master ansible_host=${MASTER_IP} ansible_user=safal
 
-          [workers]
+          [kube-workers]
           EOF
 
           i=1
           for IP in $WORKER_IPS; do
-            echo "worker${i} ansible_host=${IP} ansible_user=safal" >> ansible/inventory.ini
+            echo "kube-worker${i} ansible_host=${IP} ansible_user=safal" >> ansible/inventory.ini
             i=$((i + 1))
           done
 
