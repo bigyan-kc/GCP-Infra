@@ -1,6 +1,6 @@
 ---
-- name: Prepare all Kubernetes nodes
-  hosts: all
+- name: Prepare Kubernetes nodes
+  hosts: kube_master:kube_workers
   become: true
 
   vars:
@@ -252,7 +252,7 @@
 # =============================================================
 
 - name: Join worker nodes
-  hosts: kube-workers
+  hosts: kube_workers
   become: true
 
   tasks:
@@ -262,3 +262,86 @@
         cmd: "{{ hostvars[groups['kube_master'][0]].kubeadm_join_command }}"
       args:
         creates: /etc/kubernetes/kubelet.conf
+
+
+- name: Deploy Keycloak on a dedicated VM
+  hosts: keycloak
+  become: true
+
+  vars:
+    keycloak_version: "21.1.2"
+    keycloak_admin_user: "admin"
+    keycloak_admin_password: "admin"
+
+  tasks:
+
+    - name: Update apt cache on Keycloak host
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Docker prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /usr/share/keyrings/docker-archive-keyring.gpg
+        state: present
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_distribution_release }} stable
+        filename: docker
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Engine
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Ensure docker is enabled and running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull Keycloak image
+      ansible.builtin.command:
+        cmd: docker pull quay.io/keycloak/keycloak:{{ keycloak_version }}
+      register: keycloak_pull
+      changed_when: false
+
+    - name: Create Keycloak data directory
+      ansible.builtin.file:
+        path: /opt/keycloak/data
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure Keycloak container is running
+      ansible.builtin.shell: |
+        if ! docker container inspect keycloak >/dev/null 2>&1; then
+          docker run -d --name keycloak \
+            -p 8080:8080 \
+            -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
+            -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
+            -v /opt/keycloak/data:/opt/keycloak/data \
+            quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
+        fi
+      args:
+        executable: /bin/bash

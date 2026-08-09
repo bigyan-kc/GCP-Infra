@@ -57,6 +57,12 @@ variable "bastion_machine_type" {
   description = "Machine type for the bastion host."
 }
 
+variable "keycloak_machine_type" {
+  type        = string
+  default     = "e2-small"
+  description = "Machine type for the Keycloak identity provider VM."
+}
+
 variable "instance_name" {
   type        = string
   default     = "tf-web-server"

@@ -135,6 +135,7 @@ jobs:
         run: |
           BASTION_IP=$(jq -r '.bastion_public_ip.value' terraform-output.json)
           MASTER_IP=$(jq -r '.master_instance_internal_ip.value' terraform-output.json)
+          KEYCLOAK_IP=$(jq -r '.keycloak_instance_internal_ip.value' terraform-output.json)
 
           WORKER_IPS=$(jq -r '.worker_instance_internal_ips.value[]' terraform-output.json)
 
@@ -152,6 +153,9 @@ jobs:
           done
 
           cat >> ansible/inventory.ini <<EOF
+
+          [keycloak]
+          keycloak ansible_host=${KEYCLOAK_IP}
 
           [all:vars]
           ansible_user=safal

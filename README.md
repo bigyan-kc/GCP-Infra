@@ -24,7 +24,7 @@ python3 scripts/terraform_to_ansible_inventory.py \
   --ssh-key ~/.ssh/id_rsa
 ```
 
-This will create `ansible/inventory.ini` with the first instance in `[kube_master]` and the remaining instances in `[kube_workers]`.
+This will create `ansible/inventory.ini` with the master node in `[kube_master]`, the worker nodes in `[kube_workers]`, and the Keycloak VM in `[keycloak]`.
 
 ## Run Ansible
 
@@ -35,4 +35,4 @@ ansible-playbook -i ansible/inventory.ini ansible/site.yml
 ## Notes
 
 - Use the same SSH private key for Ansible that matches the public key injected into the VMs.
-- Terraform outputs must include `instance_names` and `instance_public_ips`.
+- Terraform outputs must include `master_instance_internal_ip`, `worker_instance_internal_ips`, and `keycloak_instance_internal_ip`.

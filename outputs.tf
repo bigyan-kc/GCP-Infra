@@ -18,5 +18,10 @@ output "bastion_public_ip" {
   description = "Public IP address of the bastion host."
 }
 
+output "keycloak_instance_internal_ip" {
+  value       = google_compute_instance.keycloak.network_interface[0].network_ip
+  description = "Internal IP address of the Keycloak VM."
+}
+
 
 

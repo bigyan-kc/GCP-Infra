@@ -83,7 +83,20 @@ resource "google_compute_firewall" "internal_ssh" {
   }
 
   source_ranges = [var.public_subnet_cidr_range]
-  target_tags   = ["ubuntu-node"]
+  target_tags   = ["ubuntu-node", "keycloak"]
+}
+
+resource "google_compute_firewall" "keycloak_http" {
+  name    = "${var.network_name}-allow-keycloak"
+  network = google_compute_network.default_vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = [var.public_subnet_cidr_range, var.subnet_cidr_range]
+  target_tags   = ["keycloak"]
 }
 
 resource "google_compute_instance" "bastion" {
@@ -126,6 +139,32 @@ resource "google_compute_instance" "master" {
   }
 
   tags = ["ubuntu-node"]
+
+  metadata = var.ssh_public_key != "" ? {
+    ssh-keys = format("%s:%s", var.ssh_username, trimspace(var.ssh_public_key))
+    } : var.ssh_public_key_path != "" ? {
+    ssh-keys = format("%s:%s", var.ssh_username, trimspace(file(var.ssh_public_key_path)))
+  } : {}
+
+  network_interface {
+    network    = google_compute_network.default_vpc.self_link
+    subnetwork = google_compute_subnetwork.private_subnet.self_link
+  }
+}
+
+resource "google_compute_instance" "keycloak" {
+  name         = "${var.instance_name_prefix}-keycloak"
+  machine_type = var.keycloak_machine_type
+  zone         = var.zone
+
+  boot_disk {
+    initialize_params {
+      image = var.instance_image
+      size  = var.boot_disk_size
+    }
+  }
+
+  tags = ["keycloak"]
 
   metadata = var.ssh_public_key != "" ? {
     ssh-keys = format("%s:%s", var.ssh_username, trimspace(var.ssh_public_key))
