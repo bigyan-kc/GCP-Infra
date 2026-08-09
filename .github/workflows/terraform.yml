@@ -142,7 +142,7 @@ jobs:
 
           cat > ansible/inventory.ini <<EOF
           [kube_master]
-          master ansible_host=${MASTER_IP} ansible_user=safal
+          kube-master ansible_host=${MASTER_IP} ansible_user=safal
 
           [kube-workers]
           EOF
