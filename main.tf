@@ -104,23 +104,20 @@ resource "google_compute_address" "keycloak_lb_ip" {
   region = var.region
 }
 
-resource "google_compute_health_check" "keycloak" {
-  name                = "${var.instance_name_prefix}-keycloak-health-check"
-  check_interval_sec  = 10
-  timeout_sec         = 5
-  healthy_threshold   = 2
+resource "google_compute_http_health_check" "keycloak" {
+  name               = "${var.instance_name_prefix}-keycloak-health-check"
+  request_path       = "/"
+  port               = 8080
+  check_interval_sec = 10
+  timeout_sec        = 5
+  healthy_threshold  = 2
   unhealthy_threshold = 2
-
-  http_health_check {
-    port         = 8080
-    request_path = "/"
-  }
 }
 
 resource "google_compute_target_pool" "keycloak" {
   name          = "${var.instance_name_prefix}-keycloak-pool"
   region        = var.region
-  health_checks = [google_compute_health_check.keycloak.self_link]
+  health_checks = [google_compute_http_health_check.keycloak.self_link]
   instances     = [google_compute_instance.keycloak.self_link]
 }
 
