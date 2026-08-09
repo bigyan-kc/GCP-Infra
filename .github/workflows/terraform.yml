@@ -109,3 +109,71 @@ jobs:
 
       - name: Terraform destroy
         run: terraform destroy -input=false -auto-approve -var-file=terraform.tfvars
+  
+  ansible:
+    name: Configure infrastructure
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
+    needs: apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download Terraform outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-outputs
+
+      - name: Generate Ansible inventory
+        run: |
+          MASTER_IP=$(jq -r '.master_instance_public_ip.value' terraform-output.json)
+
+          WORKER_IPS=$(jq -r '.worker_instance_public_ips.value[]' terraform-output.json)
+
+          cat > ansible/inventory.ini <<EOF
+          [master]
+          master ansible_host=${MASTER_IP} ansible_user=ubuntu
+
+          [workers]
+          EOF
+
+          i=1
+          for IP in $WORKER_IPS; do
+            echo "worker${i} ansible_host=${IP} ansible_user=ubuntu" >> ansible/inventory.ini
+            i=$((i + 1))
+          done
+
+          cat ansible/inventory.ini
+
+      - name: Install Ansible
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Wait for SSH
+        run: |
+          for host in $(awk '/ansible_host=/ {print $2}' ansible/inventory.ini | cut -d= -f2); do
+            echo "Waiting for SSH on $host..."
+
+            for i in {1..30}; do
+              if nc -z "$host" 22; then
+                echo "$host is ready"
+                break
+              fi
+
+              sleep 10
+            done
+          done
+
+      - name: Run Ansible
+        run: |
+          ansible-playbook \
+            -i ansible/inventory.ini \
+            ansible/site.yml
