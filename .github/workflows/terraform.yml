@@ -80,6 +80,15 @@ jobs:
 
       - name: Terraform apply
         run: terraform apply -input=false -auto-approve -var-file=terraform.tfvars
+      
+      - name: Get Terraform outputs
+        run: terraform output -json > terraform-output.json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform-output.json
 
   destroy:
     name: Destroy GCP resources
