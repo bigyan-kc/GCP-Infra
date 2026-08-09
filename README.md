@@ -26,6 +26,8 @@ python3 scripts/terraform_to_ansible_inventory.py \
 
 This will create `ansible/inventory.ini` with the master node in `[kube_master]`, the worker nodes in `[kube_workers]`, and the Keycloak VM in `[keycloak]`.
 
+After deployment, you can access Keycloak at `http://<keycloak_load_balancer_ip>:8080`.
+
 ## Run Ansible
 
 ```bash

@@ -95,8 +95,42 @@ resource "google_compute_firewall" "keycloak_http" {
     ports    = ["8080"]
   }
 
-  source_ranges = [var.public_subnet_cidr_range, var.subnet_cidr_range]
+  source_ranges = ["0.0.0.0/0"]
   target_tags   = ["keycloak"]
+}
+
+resource "google_compute_address" "keycloak_lb_ip" {
+  name   = "${var.instance_name_prefix}-keycloak-lb-ip"
+  region = var.region
+}
+
+resource "google_compute_health_check" "keycloak" {
+  name                = "${var.instance_name_prefix}-keycloak-health-check"
+  check_interval_sec  = 10
+  timeout_sec         = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+
+  tcp_health_check {
+    port = 8080
+  }
+}
+
+resource "google_compute_target_pool" "keycloak" {
+  name          = "${var.instance_name_prefix}-keycloak-pool"
+  region        = var.region
+  health_checks = [google_compute_health_check.keycloak.self_link]
+  instances     = [google_compute_instance.keycloak.self_link]
+}
+
+resource "google_compute_forwarding_rule" "keycloak" {
+  name                  = "${var.instance_name_prefix}-keycloak-lb"
+  region                = var.region
+  ip_address            = google_compute_address.keycloak_lb_ip.address
+  port_range            = "8080"
+  target                = google_compute_target_pool.keycloak.self_link
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
 }
 
 resource "google_compute_instance" "bastion" {
