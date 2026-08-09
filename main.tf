@@ -36,8 +36,7 @@ resource "google_compute_firewall" "ssh_firewall" {
 }
 
 resource "google_compute_instance" "master" {
-  count        = var.node_count_master
-  name         = "${var.instance_name_prefix}-master-${count.index + 1}"
+  name         = "${var.instance_name_prefix}-master"
   machine_type = var.machine_type
   zone         = var.zone
 

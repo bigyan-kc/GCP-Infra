@@ -9,18 +9,18 @@ output "subnet_name" {
 }
 
 output "master_instance_names" {
-  value       = [for instance in google_compute_instance.master : instance.name]
-  description = "Names of the created master VM instances."
+  value       = [google_compute_instance.master.name]
+  description = "Names of the created master VM instance."
 }
 
-output "master_instance_public_ips" {
-  value       = [for instance in google_compute_instance.master : instance.network_interface[0].access_config[0].nat_ip]
-  description = "Public IP addresses of the master VM instances."
+output "master_instance_public_ip" {
+  value       = [google_compute_instance.master.network_interface[0].access_config[0].nat_ip]
+  description = "Public IP address of the master VM instance."
 }
 
-output "master_instance_internal_ips" {
-  value       = [for instance in google_compute_instance.master : instance.network_interface[0].network_ip]
-  description = "Internal IP addresses of the master VM instances."
+output "master_instance_internal_ip" {
+  value       = [google_compute_instance.master.network_interface[0].network_ip]
+  description = "Internal IP address of the master VM instance."
 }
 
 output "worker_instance_names" {
