@@ -142,14 +142,14 @@ jobs:
 
           cat > ansible/inventory.ini <<EOF
           [master]
-          master ansible_host=${MASTER_IP} ansible_user=ubuntu
+          master ansible_host=${MASTER_IP} ansible_user=safal
 
           [workers]
           EOF
 
           i=1
           for IP in $WORKER_IPS; do
-            echo "worker${i} ansible_host=${IP} ansible_user=ubuntu" >> ansible/inventory.ini
+            echo "worker${i} ansible_host=${IP} ansible_user=safal" >> ansible/inventory.ini
             i=$((i + 1))
           done
 
