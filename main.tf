@@ -111,8 +111,9 @@ resource "google_compute_health_check" "keycloak" {
   healthy_threshold   = 2
   unhealthy_threshold = 2
 
-  tcp_health_check {
-    port = 8080
+  http_health_check {
+    port         = 8080
+    request_path = "/"
   }
 }
 
