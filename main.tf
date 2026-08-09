@@ -105,12 +105,12 @@ resource "google_compute_address" "keycloak_lb_ip" {
 }
 
 resource "google_compute_http_health_check" "keycloak" {
-  name               = "${var.instance_name_prefix}-keycloak-health-check"
-  request_path       = "/"
-  port               = 8080
-  check_interval_sec = 10
-  timeout_sec        = 5
-  healthy_threshold  = 2
+  name                = "${var.instance_name_prefix}-keycloak-health-check"
+  request_path        = "/"
+  port                = 8080
+  check_interval_sec  = 10
+  timeout_sec         = 5
+  healthy_threshold   = 2
   unhealthy_threshold = 2
 }
 
