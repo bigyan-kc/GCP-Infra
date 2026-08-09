@@ -29,14 +29,32 @@ variable "network_name" {
 
 variable "subnet_name" {
   type        = string
-  default     = "tf-gcp-subnet"
-  description = "Name of the subnet."
+  default     = "tf-private-subnet"
+  description = "Name of the private subnet for Kubernetes nodes."
 }
 
 variable "subnet_cidr_range" {
   type        = string
   default     = "10.0.0.0/24"
-  description = "CIDR range for the subnet."
+  description = "CIDR range for the private subnet."
+}
+
+variable "public_subnet_name" {
+  type        = string
+  default     = "tf-public-subnet"
+  description = "Name of the public subnet for the bastion host."
+}
+
+variable "public_subnet_cidr_range" {
+  type        = string
+  default     = "10.0.1.0/24"
+  description = "CIDR range for the public subnet."
+}
+
+variable "bastion_machine_type" {
+  type        = string
+  default     = "e2-small"
+  description = "Machine type for the bastion host."
 }
 
 variable "instance_name" {

@@ -34,5 +34,10 @@ output "worker_instance_internal_ips" {
   description = "Internal IP addresses of the worker VM instances."
 }
 
+output "bastion_public_ip" {
+  value       = google_compute_instance.bastion.network_interface[0].access_config[0].nat_ip
+  description = "Public IP address of the bastion host."
+}
+
 
 
