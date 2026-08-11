@@ -99,34 +99,61 @@ resource "google_compute_firewall" "keycloak_http" {
   target_tags   = ["keycloak"]
 }
 
-resource "google_compute_address" "keycloak_lb_ip" {
-  name   = "${var.instance_name_prefix}-keycloak-lb-ip"
-  region = var.region
+resource "google_compute_global_address" "keycloak_lb_ip" {
+  name = "${var.instance_name_prefix}-keycloak-lb-ip"
 }
 
-resource "google_compute_http_health_check" "keycloak" {
-  name                = "${var.instance_name_prefix}-keycloak-health-check"
-  request_path        = "/"
-  port                = 8080
-  check_interval_sec  = 10
-  timeout_sec         = 5
-  healthy_threshold   = 2
+resource "google_compute_health_check" "keycloak" {
+  name               = "${var.instance_name_prefix}-keycloak-health-check"
+  check_interval_sec = 10
+  timeout_sec        = 5
+  healthy_threshold  = 2
   unhealthy_threshold = 2
+
+  http_health_check {
+    port         = 8080
+    request_path = "/"
+  }
 }
 
-resource "google_compute_target_pool" "keycloak" {
-  name          = "${var.instance_name_prefix}-keycloak-pool"
-  region        = var.region
-  health_checks = [google_compute_http_health_check.keycloak.self_link]
-  instances     = [google_compute_instance.keycloak.self_link]
+resource "google_compute_instance_group" "keycloak" {
+  name        = "${var.instance_name_prefix}-keycloak-ig"
+  zone        = var.zone
+  network     = google_compute_network.default_vpc.self_link
+  instances   = [google_compute_instance.keycloak.self_link]
+  named_port {
+    name = "http"
+    port = 8080
+  }
 }
 
-resource "google_compute_forwarding_rule" "keycloak" {
+resource "google_compute_backend_service" "keycloak" {
+  name                  = "${var.instance_name_prefix}-keycloak-backend"
+  protocol              = "HTTP"
+  port_name             = "http"
+  timeout_sec           = 30
+  enable_cdn            = false
+  health_checks         = [google_compute_health_check.keycloak.self_link]
+  backend {
+    group = google_compute_instance_group.keycloak.self_link
+  }
+}
+
+resource "google_compute_url_map" "keycloak" {
+  name            = "${var.instance_name_prefix}-keycloak-urlmap"
+  default_service = google_compute_backend_service.keycloak.self_link
+}
+
+resource "google_compute_target_http_proxy" "keycloak" {
+  name   = "${var.instance_name_prefix}-keycloak-proxy"
+  url_map = google_compute_url_map.keycloak.self_link
+}
+
+resource "google_compute_global_forwarding_rule" "keycloak" {
   name                  = "${var.instance_name_prefix}-keycloak-lb"
-  region                = var.region
-  ip_address            = google_compute_address.keycloak_lb_ip.address
-  port_range            = "8080"
-  target                = google_compute_target_pool.keycloak.self_link
+  ip_address            = google_compute_global_address.keycloak_lb_ip.address
+  port_range            = "80"
+  target                = google_compute_target_http_proxy.keycloak.self_link
   load_balancing_scheme = "EXTERNAL"
   ip_protocol           = "TCP"
 }
