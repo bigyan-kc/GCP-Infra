@@ -24,7 +24,7 @@ output "keycloak_instance_internal_ip" {
 }
 
 output "keycloak_load_balancer_ip" {
-  value       = google_compute_address.keycloak_lb_ip.address
+  value       = google_compute_global_address.keycloak_lb_ip.address
   description = "Public IP address of the Keycloak load balancer."
 }
 
