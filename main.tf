@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+  }
+}
+
 resource "google_compute_network" "default_vpc" {
   name                    = var.network_name
   auto_create_subnetworks = false
@@ -144,16 +153,48 @@ resource "google_compute_url_map" "keycloak" {
   default_service = google_compute_backend_service.keycloak.self_link
 }
 
-resource "google_compute_target_http_proxy" "keycloak" {
-  name    = "${var.instance_name_prefix}-keycloak-proxy"
-  url_map = google_compute_url_map.keycloak.self_link
+resource "tls_private_key" "keycloak_lb" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "keycloak_lb" {
+  subject {
+    common_name = var.keycloak_domain_name != "" ? var.keycloak_domain_name : "localhost"
+  }
+
+  validity_period_hours = 8760
+  early_renewal_hours   = 720
+  key_usage = [
+    "digital_signature",
+    "key_encipherment",
+  ]
+  allowed_uses = [
+    "server_auth",
+    "key_encipherment",
+    "digital_signature",
+  ]
+  private_key_pem = tls_private_key.keycloak_lb.private_key_pem
+  subject_alternative_names = var.keycloak_domain_name != "" ? [var.keycloak_domain_name] : ["localhost"]
+}
+
+resource "google_compute_ssl_certificate" "keycloak" {
+  name         = "${var.instance_name_prefix}-keycloak-ssl-cert"
+  private_key  = tls_private_key.keycloak_lb.private_key_pem
+  certificate  = tls_self_signed_cert.keycloak_lb.cert_pem
+}
+
+resource "google_compute_target_https_proxy" "keycloak" {
+  name             = "${var.instance_name_prefix}-keycloak-proxy"
+  url_map          = google_compute_url_map.keycloak.self_link
+  ssl_certificates = [google_compute_ssl_certificate.keycloak.self_link]
 }
 
 resource "google_compute_global_forwarding_rule" "keycloak" {
   name                  = "${var.instance_name_prefix}-keycloak-lb"
   ip_address            = google_compute_global_address.keycloak_lb_ip.address
-  port_range            = "80"
-  target                = google_compute_target_http_proxy.keycloak.self_link
+  port_range            = "443"
+  target                = google_compute_target_https_proxy.keycloak.self_link
   load_balancing_scheme = "EXTERNAL"
   ip_protocol           = "TCP"
 }

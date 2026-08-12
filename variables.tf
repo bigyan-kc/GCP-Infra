@@ -63,6 +63,12 @@ variable "keycloak_machine_type" {
   description = "Machine type for the Keycloak identity provider VM."
 }
 
+variable "keycloak_domain_name" {
+  type        = string
+  default     = ""
+  description = "Optional domain name for Keycloak HTTPS load balancer. If set, this will be used in the self-signed certificate Subject Alternative Name."
+}
+
 variable "instance_name" {
   type        = string
   default     = "tf-web-server"
