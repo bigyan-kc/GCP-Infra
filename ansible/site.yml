@@ -344,6 +344,9 @@
             -p 8080:8080 \
             -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
             -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
+            -e KC_PROXY_HEADERS=xforwarded \
+            -e KC_HOSTNAME_STRICT=false \
+            -e KC_HOSTNAME_STRICT_BACKCHANNEL=false \
             -v /opt/keycloak/data:/opt/keycloak/data \
             quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
         fi
