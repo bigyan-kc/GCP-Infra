@@ -157,17 +157,12 @@ resource "tls_self_signed_cert" "keycloak_lb" {
 
   validity_period_hours = 8760
   early_renewal_hours   = 720
-  key_usage = [
-    "digital_signature",
-    "key_encipherment",
-  ]
   allowed_uses = [
     "server_auth",
     "key_encipherment",
     "digital_signature",
   ]
-  private_key_pem           = tls_private_key.keycloak_lb.private_key_pem
-  subject_alternative_names = var.keycloak_domain_name != "" ? [var.keycloak_domain_name] : ["localhost"]
+  private_key_pem = tls_private_key.keycloak_lb.private_key_pem
 }
 
 resource "google_compute_ssl_certificate" "keycloak" {
