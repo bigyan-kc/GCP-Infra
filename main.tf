@@ -174,14 +174,14 @@ resource "tls_self_signed_cert" "keycloak_lb" {
     "key_encipherment",
     "digital_signature",
   ]
-  private_key_pem = tls_private_key.keycloak_lb.private_key_pem
+  private_key_pem           = tls_private_key.keycloak_lb.private_key_pem
   subject_alternative_names = var.keycloak_domain_name != "" ? [var.keycloak_domain_name] : ["localhost"]
 }
 
 resource "google_compute_ssl_certificate" "keycloak" {
-  name         = "${var.instance_name_prefix}-keycloak-ssl-cert"
-  private_key  = tls_private_key.keycloak_lb.private_key_pem
-  certificate  = tls_self_signed_cert.keycloak_lb.cert_pem
+  name        = "${var.instance_name_prefix}-keycloak-ssl-cert"
+  private_key = tls_private_key.keycloak_lb.private_key_pem
+  certificate = tls_self_signed_cert.keycloak_lb.cert_pem
 }
 
 resource "google_compute_target_https_proxy" "keycloak" {
