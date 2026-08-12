@@ -1,11 +1,3 @@
-terraform {
-  required_providers {
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
-  }
-}
 
 resource "google_compute_network" "default_vpc" {
   name                    = var.network_name
