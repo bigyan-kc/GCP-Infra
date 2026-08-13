@@ -339,15 +339,19 @@
 
     - name: Ensure Keycloak container is running
       ansible.builtin.shell: |
-        if ! docker container inspect keycloak >/dev/null 2>&1; then
-          docker run -d --name keycloak \
-            -p 8080:8080 \
-            -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
-            -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
-            -e KC_PROXY_HEADERS=xforwarded \
-            -e KC_HOSTNAME=https://computemonitor.net \
-            -v /opt/keycloak/data:/opt/keycloak/data \
-            quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
+        if docker container inspect keycloak >/dev/null 2>&1; then
+          docker rm -f keycloak
         fi
+        docker run -d --name keycloak \
+          --restart unless-stopped \
+          -p 8080:8080 \
+          -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
+          -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
+          -e KC_PROXY=edge \
+          -e KC_HOSTNAME_STRICT=false \
+          -e KC_HOSTNAME_STRICT_BACKCHANNEL=false \
+          -e KC_FRONTEND_URL=https://computemonitor.net \
+          -v /opt/keycloak/data:/opt/keycloak/data \
+          quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
       args:
         executable: /bin/bash
