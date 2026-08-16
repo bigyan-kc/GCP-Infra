@@ -201,7 +201,7 @@ data "google_compute_disk" "existing_keycloak" {
 }
 
 locals {
-  keycloak_disk_self_link = var.keycloak_disk_create ? google_compute_disk.keycloak_data[0].self_link : (var.keycloak_disk_name != "" ? data.google_compute_disk.existing_keycloak[0].self_link : "")
+  keycloak_disk_self_link = var.keycloak_disk_create ? google_compute_disk.keycloak_data[0].self_link : (var.keycloak_disk_name != "" ? format("projects/%s/zones/%s/disks/%s", var.project, var.zone, var.keycloak_disk_name) : "")
   keycloak_disk_name      = var.keycloak_disk_create ? google_compute_disk.keycloak_data[0].name : var.keycloak_disk_name
 }
 

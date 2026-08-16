@@ -11,20 +11,7 @@ on:
         options:
           - apply
           - destroy
-      keycloak_disk_name:
-        description: 'Name of existing Keycloak PD to attach (leave blank to not attach)'
-        required: false
-        default: ''
-        type: string
-      keycloak_disk_create:
-        description: 'Create a new Keycloak PD (true/false)'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-
+          
 permissions:
   contents: read
   id-token: write
