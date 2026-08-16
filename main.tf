@@ -274,8 +274,6 @@ resource "google_compute_instance" "keycloak" {
     source      = local.keycloak_disk_self_link
     device_name = "keycloak-data"
     mode        = "READ_WRITE"
-    boot        = false
-    auto_delete = false
   }
 
   tags = ["keycloak"]
