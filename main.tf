@@ -270,10 +270,13 @@ resource "google_compute_instance" "keycloak" {
     }
   }
 
-  attached_disk {
-    source      = local.keycloak_disk_self_link
-    device_name = "keycloak-data"
-    mode        = "READ_WRITE"
+  dynamic "attached_disk" {
+    for_each = local.keycloak_disk_self_link != "" ? [local.keycloak_disk_self_link] : []
+    content {
+      source      = attached_disk.value
+      device_name = "keycloak-data"
+      mode        = "READ_WRITE"
+    }
   }
 
   tags = ["keycloak"]
