@@ -16,83 +16,7 @@
       - util-linux
 
     kubernetes_packages:
-      - kubelet
-      - kubeadm
-      - kubectl
-
-  tasks:
-
-    # ---------------------------------------------------------
-    # OS preparation
-    # ---------------------------------------------------------
-
-    - name: Install required OS packages
-      ansible.builtin.apt:
-        name: "{{ kube_packages }}"
-        state: present
-        update_cache: true
-
-    - name: Disable swap immediately
-      ansible.builtin.command:
-        cmd: swapoff -a
-      when: ansible_swaptotal_mb > 0
-
-    - name: Locate persistent disk by by-id name
-      ansible.builtin.shell: |
-        ls -1 /dev/disk/by-id | grep disk-20260816-193843-keycloak-data || true
-      register: pd_byid
-      changed_when: false
-
-    - name: Find an unmounted 50G block device as fallback
-      ansible.builtin.shell: |
-        lsblk -bn -o NAME,SIZE,MOUNTPOINT | awk '$2==53687091200 && $3=="" {print "/dev/"$1; exit}' || true
-      register: pd_by_size
-      changed_when: false
-
-    - name: Set PD device path
-      ansible.builtin.set_fact:
-        pd_device: >-
-          {{ ('/dev/disk/by-id/' + pd_byid.stdout_lines[0]) if (pd_byid.stdout_lines|length)>0 else (pd_by_size.stdout | trim) }}
-
-    - name: Fail if PD not found
-      ansible.builtin.fail:
-        msg: "Persistent disk not found on this VM. Expected disk by-id or an unmounted 50G device."
-      when: pd_device == ''
-
-    - name: Check for existing filesystem on PD
-      ansible.builtin.command:
-        cmd: blkid {{ pd_device }}
-      register: blkid
-      failed_when: false
-      changed_when: false
-
-    - name: Format PD as ext4 if needed
-      ansible.builtin.command:
-        cmd: mkfs.ext4 -F {{ pd_device }}
-      when: blkid.rc != 0
-
-    - name: Create Keycloak data directory
-      ansible.builtin.file:
-        path: /opt/keycloak/data
-        state: directory
-        owner: 1000
-        group: 0
-        mode: "0775"
-
-    - name: Mount PD at /opt/keycloak/data and persist in fstab
-      ansible.builtin.mount:
-        path: /opt/keycloak/data
-        src: "{{ pd_device }}"
-        fstype: ext4
-        opts: defaults
-        state: mounted
-
-    - name: Ensure ownership on mount
-      ansible.builtin.file:
-        path: /opt/keycloak/data
-        state: directory
-        owner: 1000
-        group: 0
+    
         recurse: true
 
     - name: Ensure Keycloak container is running and bound to /opt/keycloak/data
@@ -351,6 +275,56 @@
         cmd: docker pull quay.io/keycloak/keycloak:{{ keycloak_version }}
       register: keycloak_pull
       changed_when: false
+
+    - name: Locate persistent disk by by-id name
+      ansible.builtin.shell: |
+        ls -1 /dev/disk/by-id | grep disk-20260816-193843-keycloak-data || true
+      register: pd_byid
+      changed_when: false
+
+    - name: Find an unmounted 50G block device as fallback
+      ansible.builtin.shell: |
+        lsblk -bn -o NAME,SIZE,MOUNTPOINT | awk '$2==53687091200 && $3=="" {print "/dev/"$1; exit}' || true
+      register: pd_by_size
+      changed_when: false
+
+    - name: Set PD device path
+      ansible.builtin.set_fact:
+        pd_device: >-
+          {{ ('/dev/disk/by-id/' + pd_byid.stdout_lines[0]) if (pd_byid.stdout_lines|length)>0 else (pd_by_size.stdout | trim) }}
+
+    - name: Fail if PD not found
+      ansible.builtin.fail:
+        msg: "Persistent disk not found on this VM. Expected disk by-id or an unmounted 50G device."
+      when: pd_device == ''
+
+    - name: Check for existing filesystem on PD
+      ansible.builtin.command:
+        cmd: blkid {{ pd_device }}
+      register: blkid
+      failed_when: false
+      changed_when: false
+
+    - name: Format PD as ext4 if needed
+      ansible.builtin.command:
+        cmd: mkfs.ext4 -F {{ pd_device }}
+      when: blkid.rc != 0
+
+    - name: Mount PD at /opt/keycloak/data and persist in fstab
+      ansible.builtin.mount:
+        path: /opt/keycloak/data
+        src: "{{ pd_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+
+    - name: Ensure ownership on mount
+      ansible.builtin.file:
+        path: /opt/keycloak/data
+        state: directory
+        owner: 1000
+        group: 0
+        recurse: true
 
     - name: Create Keycloak data directory
       ansible.builtin.file:
