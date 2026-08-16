@@ -16,27 +16,76 @@
       - util-linux
 
     kubernetes_packages:
-    
-        recurse: true
+      - kubelet
+      - kubeadm
+      - kubectl
 
-    - name: Ensure Keycloak container is running and bound to /opt/keycloak/data
-      ansible.builtin.shell: |
-        if docker container inspect keycloak >/dev/null 2>&1; then
-          docker rm -f keycloak
-        fi
-        docker run -d --name keycloak \
-          --restart unless-stopped \
-          -p 8080:8080 \
-          -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
-          -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
-          -e KC_PROXY=edge \
-          -e KC_HOSTNAME_STRICT=false \
-          -e KC_HOSTNAME_STRICT_BACKCHANNEL=false \
-          -e KC_FRONTEND_URL=https://computemonitor.net \
-          -v /opt/keycloak/data:/opt/keycloak/data \
-          quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
-      args:
-        executable: /bin/bash
+  tasks:
+
+    # ---------------------------------------------------------
+    # OS preparation
+    # ---------------------------------------------------------
+
+    - name: Install required OS packages
+      ansible.builtin.apt:
+        name: "{{ kube_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Disable swap immediately
+      ansible.builtin.command:
+        cmd: swapoff -a
+      when: ansible_facts['swaptotal_mb'] > 0
+
+    - name: Disable swap in /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\s+swap\s+.*)$'
+        replace: '# \1'
+        backup: true
+      when: ansible_facts['swaptotal_mb'] > 0
+
+    # ---------------------------------------------------------
+    # Kernel configuration
+    # ---------------------------------------------------------
+
+    - name: Load br_netfilter kernel module
+      community.general.modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Ensure br_netfilter loads on boot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/kubernetes.conf
+        content: |
+          br_netfilter
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Configure Kubernetes sysctl settings
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_set: true
+      loop:
+        - name: net.bridge.bridge-nf-call-iptables
+          value: "1"
+        - name: net.bridge.bridge-nf-call-ip6tables
+          value: "1"
+        - name: net.ipv4.ip_forward
+          value: "1"
+
+    # ---------------------------------------------------------
+    # Containerd
+    # ---------------------------------------------------------
+
+    - name: Install containerd
+      ansible.builtin.apt:
+        name: containerd
+        state: present
         update_cache: true
 
     - name: Create containerd configuration directory
