@@ -186,6 +186,25 @@ resource "google_compute_global_forwarding_rule" "keycloak" {
   ip_protocol           = "TCP"
 }
 
+resource "google_compute_disk" "keycloak_data" {
+  count = var.keycloak_disk_create ? 1 : 0
+  name  = "${var.instance_name_prefix}-keycloak-data"
+  type  = "pd-ssd"
+  zone  = var.zone
+  size  = 50
+}
+
+data "google_compute_disk" "existing_keycloak" {
+  count = var.keycloak_disk_create ? 0 : (var.keycloak_disk_name != "" ? 1 : 0)
+  name  = var.keycloak_disk_name
+  zone  = var.zone
+}
+
+locals {
+  keycloak_disk_self_link = var.keycloak_disk_create ? google_compute_disk.keycloak_data[0].self_link : (var.keycloak_disk_name != "" ? data.google_compute_disk.existing_keycloak[0].self_link : "")
+  keycloak_disk_name      = var.keycloak_disk_create ? google_compute_disk.keycloak_data[0].name : var.keycloak_disk_name
+}
+
 resource "google_compute_instance" "bastion" {
   name         = "${var.instance_name_prefix}-bastion"
   machine_type = var.bastion_machine_type
@@ -251,6 +270,14 @@ resource "google_compute_instance" "keycloak" {
     }
   }
 
+  attached_disk {
+    source      = local.keycloak_disk_self_link
+    device_name = "keycloak-data"
+    mode        = "READ_WRITE"
+    boot        = false
+    auto_delete = false
+  }
+
   tags = ["keycloak"]
 
   metadata = var.ssh_public_key != "" ? {
@@ -258,6 +285,48 @@ resource "google_compute_instance" "keycloak" {
     } : var.ssh_public_key_path != "" ? {
     ssh-keys = format("%s:%s", var.ssh_username, trimspace(file(var.ssh_public_key_path)))
   } : {}
+
+  metadata_startup_script = <<-EOF
+    #!/bin/bash
+    set -eux
+    DISK_NAME="${local.keycloak_disk_name}"
+    if [ -z "${local.keycloak_disk_name}" ]; then
+      echo "No disk name provided; skipping mount script"
+      exit 0
+    fi
+
+    # Attempt to find the device under /dev/disk/by-id
+    DEVICE_PATH=""
+    if [ -e /dev/disk/by-id/google-${local.keycloak_disk_name} ]; then
+      DEVICE_PATH=$(readlink -f /dev/disk/by-id/google-${local.keycloak_disk_name})
+    else
+      # fallback: find any by-id entry that contains the disk name
+      ENTRY=$(ls -1 /dev/disk/by-id | grep "${local.keycloak_disk_name}" | head -n1 || true)
+      if [ -n "$ENTRY" ]; then
+        DEVICE_PATH=$(readlink -f /dev/disk/by-id/$ENTRY)
+      fi
+    fi
+
+    if [ -z "$DEVICE_PATH" ]; then
+      echo "Disk device for $DISK_NAME not found; exiting"
+      exit 0
+    fi
+
+    if ! blkid "$DEVICE_PATH" >/dev/null 2>&1; then
+      mkfs.ext4 -F "$DEVICE_PATH"
+    fi
+
+    mkdir -p /opt/keycloak/data
+    if ! mountpoint -q /opt/keycloak/data; then
+      mount "$DEVICE_PATH" /opt/keycloak/data
+    fi
+    chown -R 1000:0 /opt/keycloak/data || true
+
+    UUID=$(blkid -s UUID -o value "$DEVICE_PATH") || true
+    if [ -n "$UUID" ] && ! grep -q "$UUID" /etc/fstab; then
+      echo "UUID=$UUID /opt/keycloak/data ext4 defaults 0 2" >> /etc/fstab
+    fi
+  EOF
 
   network_interface {
     network    = google_compute_network.default_vpc.self_link

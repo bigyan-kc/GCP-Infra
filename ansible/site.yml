@@ -325,6 +325,49 @@
       register: keycloak_pull
       changed_when: false
 
+    - name: Find attached GCE PD device (wait/retry)
+      ansible.builtin.shell: |
+        ls -1 /dev/disk/by-id | grep keycloak-data || true
+      register: pd_found
+      retries: 6
+      delay: 10
+      until: pd_found.stdout != ""
+      failed_when: false
+      changed_when: false
+
+    - name: Set PD device path fact
+      ansible.builtin.set_fact:
+        pd_device: "/dev/disk/by-id/{{ pd_found.stdout_lines[0] | default('') }}"
+
+    - name: Check for existing filesystem on PD
+      ansible.builtin.command:
+        cmd: blkid {{ pd_device }}
+      register: blkid
+      failed_when: false
+      changed_when: false
+
+    - name: Format PD as ext4 if needed
+      ansible.builtin.command:
+        cmd: mkfs.ext4 -F {{ pd_device }}
+      when: blkid.rc != 0
+
+    - name: Create mount directory
+      ansible.builtin.file:
+        path: /opt/keycloak/data
+        state: directory
+        owner: 1000
+        group: 0
+        mode: "0775"
+
+    - name: Mount PD and persist in fstab
+      ansible.builtin.mount:
+        path: /opt/keycloak/data
+        src: "{{ pd_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+
+
     - name: Create Keycloak data directory
       ansible.builtin.file:
         path: /opt/keycloak/data

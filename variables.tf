@@ -122,3 +122,15 @@ variable "boot_disk_size" {
   default     = 20
   description = "Boot disk size in GB for each VM instance."
 }
+
+variable "keycloak_disk_create" {
+  type        = bool
+  default     = false
+  description = "If true, Terraform will create a new PD for Keycloak. If false, set keycloak_disk_name to an existing disk."
+}
+
+variable "keycloak_disk_name" {
+  type        = string
+  default     = ""
+  description = "Name of an existing GCE persistent disk to attach to the Keycloak VM when keycloak_disk_create is false."
+}
