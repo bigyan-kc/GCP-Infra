@@ -11,7 +11,7 @@ on:
         options:
           - apply
           - destroy
-          
+
 permissions:
   contents: read
   id-token: write
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
-      TF_VAR_keycloak_disk_name: "disk-20260816-193843-keycloak-data"
+      TF_VAR_keycloak_disk_name: "disk-20260816-200345-keycloak-data"
       TF_VAR_keycloak_disk_create: "false"
     steps:
       - name: Checkout repository
@@ -59,7 +59,7 @@ jobs:
     environment: production
     env:
       TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
-      TF_VAR_keycloak_disk_name: "disk-20260816-193843-keycloak-data"
+      TF_VAR_keycloak_disk_name: " disk-20260816-200345-keycloak-data"
       TF_VAR_keycloak_disk_create: "false"
     steps:
       - name: Checkout repository
@@ -99,7 +99,7 @@ jobs:
     environment: production
     env:
       TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
-      TF_VAR_keycloak_disk_name: "disk-20260816-193843-keycloak-data"
+      TF_VAR_keycloak_disk_name: " disk-20260816-200345-keycloak-data"
       TF_VAR_keycloak_disk_create: "false"
     steps:
       - name: Checkout repository
