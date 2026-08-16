@@ -37,55 +37,82 @@
         cmd: swapoff -a
       when: ansible_swaptotal_mb > 0
 
-    - name: Disable swap in /etc/fstab
-      ansible.builtin.replace:
-        path: /etc/fstab
-        regexp: '^([^#].*\s+swap\s+.*)$'
-        replace: '# \1'
-        backup: true
-      when: ansible_swaptotal_mb > 0
+    - name: Locate persistent disk by by-id name
+      ansible.builtin.shell: |
+        ls -1 /dev/disk/by-id | grep disk-20260816-193843-keycloak-data || true
+      register: pd_byid
+      changed_when: false
 
-    # ---------------------------------------------------------
-    # Kernel configuration
-    # ---------------------------------------------------------
+    - name: Find an unmounted 50G block device as fallback
+      ansible.builtin.shell: |
+        lsblk -bn -o NAME,SIZE,MOUNTPOINT | awk '$2==53687091200 && $3=="" {print "/dev/"$1; exit}' || true
+      register: pd_by_size
+      changed_when: false
 
-    - name: Load br_netfilter kernel module
-      community.general.modprobe:
-        name: br_netfilter
-        state: present
+    - name: Set PD device path
+      ansible.builtin.set_fact:
+        pd_device: >-
+          {{ ('/dev/disk/by-id/' + pd_byid.stdout_lines[0]) if (pd_byid.stdout_lines|length)>0 else (pd_by_size.stdout | trim) }}
 
-    - name: Ensure br_netfilter loads on boot
-      ansible.builtin.copy:
-        dest: /etc/modules-load.d/kubernetes.conf
-        content: |
-          br_netfilter
-        owner: root
-        group: root
-        mode: "0644"
+    - name: Fail if PD not found
+      ansible.builtin.fail:
+        msg: "Persistent disk not found on this VM. Expected disk by-id or an unmounted 50G device."
+      when: pd_device == ''
 
-    - name: Configure Kubernetes sysctl settings
-      ansible.posix.sysctl:
-        name: "{{ item.name }}"
-        value: "{{ item.value }}"
-        state: present
-        reload: true
-        sysctl_set: true
-      loop:
-        - name: net.bridge.bridge-nf-call-iptables
-          value: "1"
-        - name: net.bridge.bridge-nf-call-ip6tables
-          value: "1"
-        - name: net.ipv4.ip_forward
-          value: "1"
+    - name: Check for existing filesystem on PD
+      ansible.builtin.command:
+        cmd: blkid {{ pd_device }}
+      register: blkid
+      failed_when: false
+      changed_when: false
 
-    # ---------------------------------------------------------
-    # Containerd
-    # ---------------------------------------------------------
+    - name: Format PD as ext4 if needed
+      ansible.builtin.command:
+        cmd: mkfs.ext4 -F {{ pd_device }}
+      when: blkid.rc != 0
 
-    - name: Install containerd
-      ansible.builtin.apt:
-        name: containerd
-        state: present
+    - name: Create Keycloak data directory
+      ansible.builtin.file:
+        path: /opt/keycloak/data
+        state: directory
+        owner: 1000
+        group: 0
+        mode: "0775"
+
+    - name: Mount PD at /opt/keycloak/data and persist in fstab
+      ansible.builtin.mount:
+        path: /opt/keycloak/data
+        src: "{{ pd_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+
+    - name: Ensure ownership on mount
+      ansible.builtin.file:
+        path: /opt/keycloak/data
+        state: directory
+        owner: 1000
+        group: 0
+        recurse: true
+
+    - name: Ensure Keycloak container is running and bound to /opt/keycloak/data
+      ansible.builtin.shell: |
+        if docker container inspect keycloak >/dev/null 2>&1; then
+          docker rm -f keycloak
+        fi
+        docker run -d --name keycloak \
+          --restart unless-stopped \
+          -p 8080:8080 \
+          -e KEYCLOAK_ADMIN={{ keycloak_admin_user }} \
+          -e KEYCLOAK_ADMIN_PASSWORD={{ keycloak_admin_password }} \
+          -e KC_PROXY=edge \
+          -e KC_HOSTNAME_STRICT=false \
+          -e KC_HOSTNAME_STRICT_BACKCHANNEL=false \
+          -e KC_FRONTEND_URL=https://computemonitor.net \
+          -v /opt/keycloak/data:/opt/keycloak/data \
+          quay.io/keycloak/keycloak:{{ keycloak_version }} start-dev
+      args:
+        executable: /bin/bash
         update_cache: true
 
     - name: Create containerd configuration directory
