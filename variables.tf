@@ -134,3 +134,9 @@ variable "keycloak_disk_name" {
   default     = ""
   description = "Name of an existing GCE persistent disk to attach to the Keycloak VM when keycloak_disk_create is false."
 }
+
+variable "api_allowed_cidrs" {
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+  description = "List of CIDR ranges allowed to access the Kubernetes API LB. Restrict this to your laptop IPs in production."
+}

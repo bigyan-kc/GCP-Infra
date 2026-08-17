@@ -1,3 +1,9 @@
+resource "google_compute_ssl_certificate" "keycloak" {
+  name        = "${var.instance_name_prefix}-keycloak-ssl-cert"
+  private_key = tls_private_key.keycloak_lb.private_key_pem
+  certificate = tls_self_signed_cert.keycloak_lb.cert_pem
+}
+
 resource "google_compute_managed_ssl_certificate" "computemonitor" {
   name = "computemonitor-cert"
 
@@ -10,8 +16,72 @@ resource "google_compute_managed_ssl_certificate" "computemonitor" {
   }
 }
 
+resource "google_compute_global_forwarding_rule" "keycloak" {
+  name                  = "${var.instance_name_prefix}-keycloak-lb"
+  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
+  port_range            = "443"
+  target                = google_compute_target_https_proxy.keycloak.self_link
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
+}
+
 resource "google_compute_target_https_proxy" "keycloak" {
   name             = "${var.instance_name_prefix}-keycloak-proxy"
   url_map          = google_compute_url_map.keycloak.self_link
   ssl_certificates = [google_compute_managed_ssl_certificate.computemonitor.self_link]
+}
+
+
+
+# ---------------------------------------------------------
+# Network Load Balancer for Kubernetes API
+# Uses the SAME global static IP as Keycloak
+# TCP 6443
+# ---------------------------------------------------------
+
+resource "google_compute_health_check" "k8s_api" {
+  name                = "${var.instance_name_prefix}-k8s-api-hc"
+  check_interval_sec  = 10
+  timeout_sec          = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+
+  tcp_health_check {
+    port = 6443
+  }
+}
+
+
+# Unmanaged instance group containing the Kubernetes master
+resource "google_compute_instance_group" "k8s_master" {
+  name = "${var.instance_name_prefix}-k8s-master-ig"
+  zone = google_compute_instance.master.zone
+
+  instances = [
+    google_compute_instance.master.self_link
+  ]
+}
+
+
+# Backend service for Kubernetes API
+resource "google_compute_backend_service" "k8s_api" {
+  name                  = "${var.instance_name_prefix}-k8s-api-backend"
+  protocol              = "TCP"
+  load_balancing_scheme = "EXTERNAL"
+  health_checks         = [google_compute_health_check.k8s_api.self_link]
+
+  backend {
+    group = google_compute_instance_group.k8s_master.self_link
+  }
+}
+
+
+# Same global static IP, but TCP port 6443
+resource "google_compute_global_forwarding_rule" "k8s_api" {
+  name                  = "${var.instance_name_prefix}-k8s-api-fr"
+  ip_address             = data.google_compute_global_address.keycloak_lb_ip.address
+  port_range             = "6443"
+  target                 = google_compute_backend_service.k8s_api.self_link
+  load_balancing_scheme  = "EXTERNAL"
+  ip_protocol            = "TCP"
 }
