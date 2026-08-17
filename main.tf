@@ -179,7 +179,7 @@ resource "google_compute_target_https_proxy" "keycloak" {
 
 resource "google_compute_global_forwarding_rule" "keycloak" {
   name                  = "${var.instance_name_prefix}-keycloak-lb"
-  ip_address            = google_compute_global_address.keycloak_lb_ip.address
+  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
   port_range            = "443"
   target                = google_compute_target_https_proxy.keycloak.self_link
   load_balancing_scheme = "EXTERNAL"
