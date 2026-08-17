@@ -171,12 +171,6 @@ resource "google_compute_ssl_certificate" "keycloak" {
   certificate = tls_self_signed_cert.keycloak_lb.cert_pem
 }
 
-resource "google_compute_target_https_proxy" "keycloak" {
-  name             = "${var.instance_name_prefix}-keycloak-proxy"
-  url_map          = google_compute_url_map.keycloak.self_link
-  ssl_certificates = [google_compute_ssl_certificate.keycloak.self_link]
-}
-
 resource "google_compute_global_forwarding_rule" "keycloak" {
   name                  = "${var.instance_name_prefix}-keycloak-lb"
   ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
