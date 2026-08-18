@@ -300,7 +300,7 @@
         repo: >-
           deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg]
           https://download.docker.com/linux/ubuntu
-          {{ ansible_distribution_release }} stable
+          {{ ansible_facts['distribution_release'] }} stable
         filename: docker
         state: present
         update_cache: yes
@@ -325,27 +325,61 @@
       register: keycloak_pull
       changed_when: false
 
-    - name: Locate persistent disk by by-id name
+    # ---------------------------------------------------------
+    # Keycloak persistent disk
+    #
+    # Works for both new and existing infrastructure:
+    # 1. Reuse the disk if /opt/keycloak/data is already mounted.
+    # 2. Otherwise find the attached disk by its by-id name.
+    # 3. Fall back to an unmounted 50G disk for new infrastructure.
+    # ---------------------------------------------------------
+
+    - name: Check if Keycloak data disk is already mounted
+      ansible.builtin.command:
+        cmd: findmnt -n -o SOURCE /opt/keycloak/data
+      register: keycloak_mount
+      failed_when: false
+      changed_when: false
+
+    - name: Set PD device from existing mount
+      ansible.builtin.set_fact:
+        pd_device: "{{ keycloak_mount.stdout | trim }}"
+      when:
+        - keycloak_mount.rc == 0
+        - keycloak_mount.stdout | trim != ""
+
+    - name: Locate Keycloak persistent disk by ID
       ansible.builtin.shell: |
-        ls -1 /dev/disk/by-id | grep disk-20260816-193843-keycloak-data || true
+        ls -1 /dev/disk/by-id | grep 'keycloak-data' | head -n 1 || true
       register: pd_byid
       changed_when: false
+      when: pd_device is not defined or pd_device == ""
+
+    - name: Set PD device from by-id
+      ansible.builtin.set_fact:
+        pd_device: "/dev/disk/by-id/{{ pd_byid.stdout | trim }}"
+      when:
+        - pd_device is not defined or pd_device == ""
+        - pd_byid.stdout | trim != ""
 
     - name: Find an unmounted 50G block device as fallback
       ansible.builtin.shell: |
         lsblk -bn -o NAME,SIZE,MOUNTPOINT | awk '$2==53687091200 && $3=="" {print "/dev/"$1; exit}' || true
       register: pd_by_size
       changed_when: false
+      when: pd_device is not defined or pd_device == ""
 
-    - name: Set PD device path
+    - name: Set PD device from size fallback
       ansible.builtin.set_fact:
-        pd_device: >-
-          {{ ('/dev/disk/by-id/' + pd_byid.stdout_lines[0]) if (pd_byid.stdout_lines|length)>0 else (pd_by_size.stdout | trim) }}
+        pd_device: "{{ pd_by_size.stdout | trim }}"
+      when:
+        - pd_device is not defined or pd_device == ""
+        - pd_by_size.stdout | trim != ""
 
     - name: Fail if PD not found
       ansible.builtin.fail:
-        msg: "Persistent disk not found on this VM. Expected disk by-id or an unmounted 50G device."
-      when: pd_device == ''
+        msg: "Keycloak persistent disk could not be found."
+      when: pd_device is not defined or pd_device == ""
 
     - name: Check for existing filesystem on PD
       ansible.builtin.command:
