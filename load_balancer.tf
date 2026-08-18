@@ -68,7 +68,7 @@ resource "google_compute_target_pool" "k8s_api" {
 # Regional forwarding rule for TCP 6443
 resource "google_compute_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
-  region                = var.region
+#   region                = var.region
   ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
   port_range            = "6443"
   target                = google_compute_target_pool.k8s_api.self_link
