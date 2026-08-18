@@ -39,42 +39,29 @@ resource "google_compute_target_https_proxy" "keycloak" {
 # TCP 6443
 # ---------------------------------------------------------
 
-
-
-
-# Unmanaged instance group containing the Kubernetes master
-resource "google_compute_instance_group" "k8s_master" {
-  name = "${var.instance_name_prefix}-k8s-master-ig"
-  zone = google_compute_instance.master.zone
+resource "google_compute_target_pool" "k8s_api" {
+  name      = "${var.instance_name_prefix}-k8s-api-tp"
+  region    = var.region
 
   instances = [
     google_compute_instance.master.self_link
   ]
-}
-
-
-resource "google_compute_backend_service" "k8s_api" {
-  name                  = "${var.instance_name_prefix}-k8s-api-backend"
-  protocol              = "TCP"
-  load_balancing_scheme = "EXTERNAL"
 
   health_checks = [
     google_compute_health_check.k8s_api.self_link
   ]
-
-  backend {
-    group = google_compute_instance_group.k8s_master.self_link
-  }
 }
 
+
 # Regional forwarding rule for TCP 6443
-resource "google_compute_global_forwarding_rule" "k8s_api" {
+resource "google_compute_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
-  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
-  port_range            = "6443"
-  target                = google_compute_backend_service.k8s_api.self_link
-  load_balancing_scheme = "EXTERNAL"
-  ip_protocol           = "TCP"
+  region                = var.region
+  ip_address             = data.google_compute_address.k8s_api.address
+  port_range             = "6443"
+  target                = google_compute_target_pool.k8s_api.self_link
+  load_balancing_scheme  = "EXTERNAL"
+  ip_protocol            = "TCP"
 }
 
 
