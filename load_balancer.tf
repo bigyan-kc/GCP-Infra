@@ -73,6 +73,10 @@ resource "google_compute_target_pool" "k8s_api" {
   name      = "${var.instance_name_prefix}-k8s-api-tp"
   region    = var.region
   instances = [google_compute_instance.master.self_link]
+
+  health_checks = [
+    google_compute_health_check.k8s_api.name
+  ]
 }
 
 # Regional forwarding rule for TCP 6443
