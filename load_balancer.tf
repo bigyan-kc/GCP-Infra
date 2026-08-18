@@ -40,8 +40,8 @@ resource "google_compute_target_https_proxy" "keycloak" {
 # ---------------------------------------------------------
 
 resource "google_compute_target_pool" "k8s_api" {
-  name      = "${var.instance_name_prefix}-k8s-api-tp"
-  region    = var.region
+  name   = "${var.instance_name_prefix}-k8s-api-tp"
+  region = var.region
 
   instances = [
     google_compute_instance.master.self_link
@@ -57,11 +57,11 @@ resource "google_compute_target_pool" "k8s_api" {
 resource "google_compute_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
   region                = var.region
-  ip_address             = data.google_compute_address.k8s_api.address
-  port_range             = "6443"
+  ip_address            = data.google_compute_address.k8s_api.address
+  port_range            = "6443"
   target                = google_compute_target_pool.k8s_api.self_link
-  load_balancing_scheme  = "EXTERNAL"
-  ip_protocol            = "TCP"
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
 }
 
 
