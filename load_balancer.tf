@@ -42,7 +42,7 @@ resource "google_compute_target_https_proxy" "keycloak" {
 resource "google_compute_health_check" "k8s_api" {
   name                = "${var.instance_name_prefix}-k8s-api-hc"
   check_interval_sec  = 10
-  timeout_sec          = 5
+  timeout_sec         = 5
   healthy_threshold   = 2
   unhealthy_threshold = 2
 
@@ -79,9 +79,9 @@ resource "google_compute_backend_service" "k8s_api" {
 # Same global static IP, but TCP port 6443
 resource "google_compute_global_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
-  ip_address             = data.google_compute_global_address.keycloak_lb_ip.address
-  port_range             = "6443"
-  target                 = google_compute_backend_service.k8s_api.self_link
-  load_balancing_scheme  = "EXTERNAL"
-  ip_protocol            = "TCP"
+  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
+  port_range            = "6443"
+  target                = google_compute_backend_service.k8s_api.self_link
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
 }
