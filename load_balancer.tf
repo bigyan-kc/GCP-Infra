@@ -52,11 +52,11 @@ resource "google_compute_instance_group" "k8s_master" {
   ]
 }
 
-# Regional static IP for the Kubernetes API network LB
-resource "google_compute_address" "k8s_api" {
-  name   = "${var.instance_name_prefix}-k8s-api-ip"
-  region = var.region
-}
+# # Regional static IP for the Kubernetes API network LB
+# resource "google_compute_address" "k8s_api" {
+#   name   = "${var.instance_name_prefix}-k8s-api-ip"
+#   region = var.region
+# }
 
 # Target pool for the Network (TCP) Load Balancer
 resource "google_compute_target_pool" "k8s_api" {
@@ -69,7 +69,7 @@ resource "google_compute_target_pool" "k8s_api" {
 resource "google_compute_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
   region                = var.region
-  ip_address            = google_compute_address.k8s_api.address
+  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
   port_range            = "6443"
   target                = google_compute_target_pool.k8s_api.self_link
   load_balancing_scheme = "EXTERNAL"
