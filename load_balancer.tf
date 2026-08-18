@@ -39,16 +39,15 @@ resource "google_compute_target_https_proxy" "keycloak" {
 # TCP 6443
 # ---------------------------------------------------------
 
-resource "google_compute_health_check" "k8s_api" {
+resource "google_compute_https_health_check" "k8s_api" {
   name                = "${var.instance_name_prefix}-k8s-api-hc"
   check_interval_sec  = 10
   timeout_sec         = 5
   healthy_threshold   = 2
   unhealthy_threshold = 2
 
-  tcp_health_check {
-    port = 6443
-  }
+  request_path = "/healthz"
+  port         = 6443
 }
 
 
@@ -73,10 +72,7 @@ resource "google_compute_target_pool" "k8s_api" {
   name      = "${var.instance_name_prefix}-k8s-api-tp"
   region    = var.region
   instances = [google_compute_instance.master.self_link]
-
-  health_checks = [
-    google_compute_health_check.k8s_api.name
-  ]
+  health_checks = [google_compute_https_health_check.k8s_api.self_link]
 }
 
 # Regional forwarding rule for TCP 6443
