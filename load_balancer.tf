@@ -72,7 +72,6 @@ resource "google_compute_address" "k8s_api" {
 resource "google_compute_target_pool" "k8s_api" {
   name          = "${var.instance_name_prefix}-k8s-api-tp"
   region        = var.region
-  health_checks = [google_compute_health_check.k8s_api.self_link]
   instances     = [google_compute_instance.master.self_link]
 }
 
