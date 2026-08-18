@@ -58,9 +58,9 @@ resource "google_compute_backend_service" "k8s_api" {
   protocol              = "TCP"
   load_balancing_scheme = "EXTERNAL"
 
-  health_checks = [
-    google_compute_health_check.k8s_api.self_link
-  ]
+  #   health_checks = [
+  #     google_compute_health_check.k8s_api.self_link
+  #   ]
 
   backend {
     group = google_compute_instance_group.k8s_master.self_link
