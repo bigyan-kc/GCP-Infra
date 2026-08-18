@@ -62,26 +62,27 @@ resource "google_compute_instance_group" "k8s_master" {
   ]
 }
 
-
-# Backend service for Kubernetes API
-resource "google_compute_backend_service" "k8s_api" {
-  name                  = "${var.instance_name_prefix}-k8s-api-backend"
-  protocol              = "TCP"
-  load_balancing_scheme = "EXTERNAL"
-  health_checks         = [google_compute_health_check.k8s_api.self_link]
-
-  backend {
-    group = google_compute_instance_group.k8s_master.self_link
-  }
+# Regional static IP for the Kubernetes API network LB
+resource "google_compute_address" "k8s_api" {
+  name   = "${var.instance_name_prefix}-k8s-api-ip"
+  region = var.region
 }
 
+# Target pool for the Network (TCP) Load Balancer
+resource "google_compute_target_pool" "k8s_api" {
+  name          = "${var.instance_name_prefix}-k8s-api-tp"
+  region        = var.region
+  health_checks = [google_compute_health_check.k8s_api.self_link]
+  instances     = [google_compute_instance.master.self_link]
+}
 
-# Same global static IP, but TCP port 6443
-resource "google_compute_global_forwarding_rule" "k8s_api" {
+# Regional forwarding rule for TCP 6443
+resource "google_compute_forwarding_rule" "k8s_api" {
   name                  = "${var.instance_name_prefix}-k8s-api-fr"
-  ip_address            = data.google_compute_global_address.keycloak_lb_ip.address
+  region                = var.region
+  ip_address            = google_compute_address.k8s_api.address
   port_range            = "6443"
-  target                = google_compute_backend_service.k8s_api.self_link
+  target                = google_compute_target_pool.k8s_api.self_link
   load_balancing_scheme = "EXTERNAL"
   ip_protocol           = "TCP"
 }
