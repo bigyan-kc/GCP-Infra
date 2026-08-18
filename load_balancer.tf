@@ -60,9 +60,9 @@ resource "google_compute_address" "k8s_api" {
 
 # Target pool for the Network (TCP) Load Balancer
 resource "google_compute_target_pool" "k8s_api" {
-  name          = "${var.instance_name_prefix}-k8s-api-tp"
-  region        = var.region
-  instances     = [google_compute_instance.master.self_link]
+  name      = "${var.instance_name_prefix}-k8s-api-tp"
+  region    = var.region
+  instances = [google_compute_instance.master.self_link]
 }
 
 # Regional forwarding rule for TCP 6443
